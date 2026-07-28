@@ -1,0 +1,7 @@
+# Windows / OS junk
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Power BI temporary files
+*.pbix.ghost
