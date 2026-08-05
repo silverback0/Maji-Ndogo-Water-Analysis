@@ -1,26 +1,83 @@
+# Maji Ndogo Water Crisis: Turning 27,000+ Field Records into an Action Plan
 
-# Maji Ndogo: Comprehensive Water Accessibility, Contamination & Crime Insights Analysis
+**ALX Data Analytics Capstone** · SQL + Power BI
 
-> **Note:** Power BI (`.pbix`) files cannot be rendered interactively directly inside GitHub. This documentation serves as the executive summary, technical showcase, data pipeline overview, and architectural blueprint for this project.
-
----
-
-## Executive Summary & Background
-
-**Maji Ndogo**, a nation of over 27,000 surveyed water access points, faces a complex water crisis compounded by severe queue times, unsafe biological/chemical contamination, and public safety risks at water collection sites. 
-
-This project delivers an end-to-end data engineering and business intelligence solution designed to:
-1. **Identify bottlenecks** in water access and queue times across provinces.
-2. **Classify water quality & contamination risks** across thousands of wells to prioritize purification infrastructure.
-3. **Analyze public safety & crime incidents** near collection points to optimize law enforcement and community intervention.
+> Maji Ndogo is a fictional nation used in the ALX Data Analytics program to simulate a real-world water crisis. This project takes raw survey data from over 27,000 water access points and turns it into a decision-ready dashboard for national and provincial leaders.
 
 ---
 
-## Data Architecture & Relational Model
+## The Problem
 
-The project integrates relational data originating from a **MySQL** database into **Power BI Desktop**, structured around a Star Schema data model.
+Millions of people in Maji Ndogo don't have reliable access to clean water. Long queues at shared taps and wells aren't just an inconvenience — they cost time, expose people to unsafe water, and put women and children at risk of crime while they wait.
 
-### Entity Relationship Diagram (ERD)
+Leadership needed answers to three questions before they could act:
+1. **Where** is water access worst, and why?
+2. **Which** water sources are contaminated, and how badly?
+3. **When and where** are people most at risk of crime while collecting water?
+
+## What I Did
+
+Starting from raw MySQL survey data, I cleaned and modeled the dataset, then built a Power BI dashboard so stakeholders could explore the crisis themselves instead of reading a static report.
+
+- **SQL** — queried and validated the source data, joining field visits, water quality tests, and crime logs across five tables
+- **Power Query (M)** — standardized inconsistent labels (e.g., `F`/`M`/`C` → `Female`/`Male`/`Child`) and cleaned whitespace/formatting issues
+- **DAX** — built calculated columns and measures to classify contamination severity and roll up crime and queue metrics
+- **Power BI** — designed an interactive report with drill-through by province and town
+
+## Key Findings
+
+**Water quality**
+- ~51% of tested wells are clean; **~28% show chemical contamination** and **~21% show biological contamination**
+- Sokoto and Hawassa provinces have the most severe biological contamination, making them top priorities for UV filtration and chlorine dosing
+
+**Safety at water sources**
+- Women make up the largest share of crime victims at collection points, largely due to long queues during early morning and evening hours
+- Crime incidents spike between **5–8 AM** and again during evening peak queue times — a clear window for targeted security patrols
+
+**Queue times**
+- **Saturdays are by far the worst day to collect water** — average queue time jumps to ~250 minutes, roughly 3x a typical weekday
+- Queues peak sharply in the early morning (before 9 AM) and again in the evening (after 4 PM), tracking directly with the crime spike windows above
+- In Akatsi and Sokoto, over 75% of people in queues are women — reinforcing why queue time and public safety are the same problem, not two separate ones
+
+*(See the dashboard screenshots below for the full picture.)*
+
+## Where This Is Happening
+
+Maji Ndogo has five provinces — Sokoto, Kilimani, Hawassa, Akatsi, and Amanzi — with population served, contamination, and queue burden varying widely between them.
+
+![Province Map](assets/04_province_map.png)
+
+## Dashboard Preview
+
+| Water Insights | Crime Insights | Queue Patterns |
+|---|---|---|
+| ![Water Insights](assets/01_water_insights.png) | ![Crime Insights](assets/02_crime_insights.png) | ![Queue Patterns](assets/03_queue_patterns.png) |
+
+*Contamination breakdown by source/region, crime patterns by time of day and demographic, and queue-time trends by day and hour.*
+
+## Try It Yourself
+
+```bash
+git clone https://github.com/silverback0/Maji-Ndogo-Water-Analysis.git
+```
+
+1. Import `sql/md_water_services.sql` into MySQL if you want to explore the raw queries
+2. Open either file in `power_bi/` in Power BI Desktop to interact with the dashboards:
+   - `ALX PROJECT.pbix` — Stage 1: National overview, regional map, and queue-time analysis
+   - `ALX PROJECT PART 2 SCHEMA.pbix` — Stage 2: builds on Stage 1's national/queue views and adds Water Insights (contamination) and Crime Insight pages
+
+   *Part 2 is the more complete report — start there if you only want to open one file.*
+
+---
+
+## Technical Deep Dive
+
+<details>
+<summary>Data model, SQL, and DAX (click to expand)</summary>
+
+### Data Model
+
+The project uses a star schema built from a MySQL database (`md_water_services.sql`):
 
 ```text
        +------------------+          +------------------+
@@ -37,22 +94,18 @@ The project integrates relational data originating from a **MySQL** database int
        +------------------+
 ```
 
-### Table Dictionary
-* `location`: Geographical attributes (`province_name`, `town_name`, `location_type`).
-* `water_source`: Water point metadata (`source_id`, `type_of_water_source`, number of people served).
-* `visits`: Field survey logs (`visit_count`, `time_in_queue`, timestamp).
-* `well_pollution`: Water sample test results (`results`, `pollutant_ppm`, `biological`).
-* `crime_incidents`: Public safety records logged near collection points (`crime_type`, `victim_gender`, `Hour_of_Day`, `Day_Name`).
+| Table | Contents |
+|---|---|
+| `location` | Province, town, urban/rural classification |
+| `water_source` | Source type and population served |
+| `visits` | Field survey logs (queue time, visit count) |
+| `well_pollution` | Water sample test results |
+| `crime_incidents` | Crime type, victim demographics, time of day |
 
----
-
-## Data Pipeline, ETL & DAX Logic
-
-### 1. SQL Data Extraction & Aggregation
-Core queries executed in MySQL for initial data exploration and pipeline validation:
+### Example SQL
 
 ```sql
--- Identifying high-queue areas and contamination status across provinces
+-- High-queue areas cross-referenced with contamination status
 SELECT 
     l.province_name,
     l.town_name,
@@ -68,17 +121,8 @@ GROUP BY 1, 2, 3, 5
 ORDER BY avg_queue_time_mins DESC;
 ```
 
-### 2. Power Query (M) & Data Standardization
-* **String Standardization:** Trimmed hidden whitespaces and cleaned unmapped strings across `results` and `victim_gender`.
-* **Value Replacement:** Transformed technical database codes into human-readable labels (`harassment` $
-ightarrow$ `Harassment`, `F` $
-ightarrow$ `Female`, `M` $
-ightarrow$ `Male`, `C` $
-ightarrow$ `Child`).
+### Key DAX Measures
 
-### 3. Key DAX Calculations
-
-#### Contamination Status Classification (Calculated Column)
 ```dax
 Contamination Status = 
 VAR RawResult = TRIM(Well_Pollution[results])
@@ -90,10 +134,7 @@ SWITCH(
     RawResult = "Contaminated: Biological", "Biological Contamination",
     "Clean / Uncontaminated"
 )
-```
 
-#### Victim Gender Standardization (Calculated Column)
-```dax
 Victim Gender Full = 
 SWITCH(
     UPPER(TRIM(Crime_Incidents[victim_gender])),
@@ -102,61 +143,29 @@ SWITCH(
     "C", "Child",
     "Other / Unknown"
 )
-```
 
-#### Explicit Measure Aggregations
-```dax
 Total Crime Incidents = COUNT(Crime_Incidents[crime_id])
-
 Total Biological Contamination = SUM(Well_Pollution[biological])
 ```
 
----
-
-## Key Findings & Strategic Insights
-
-### 1. Water Contamination & Safety
-* **Contamination Breakdown:** Approximately **50.91%** of surveyed wells test completely **Clean / Uncontaminated**, **27.93%** suffer from **Chemical Contamination**, and **21.16%** suffer from **Biological Contamination**.
-* **High-Risk Regions:** Sokoto and Hawassa provinces exhibit critical biological contamination loads requiring immediate installation of UV filtration systems and chlorine dosing units.
-
-### 2. Public Safety & Crime Dynamics
-* **Demographics:** Female citizens represent the largest proportion of crime victims at water collection points due to extended early morning and late evening queuing.
-* **Temporal Patterns:** Incidents spike during early morning hours (5:00 AM – 8:00 AM) and evening peak queue times, highlighting where security patrols should be deployed.
-
----
-
-## Required Visual Assets (Screenshots)
-
-To showcase this project effectively on GitHub, capture and attach the following screenshots in a repository folder named `assets/`:
-
-1. `assets/01_water_insights.png`:
-   * **Content:** The **Water Insights** page displaying the *Water Source Contamination Status* donut chart and *Biological Contamination Levels by Source & Region* bar chart.
-2. `assets/02_crime_insights.png`:
-   * **Content:** The **Crime Insights** page displaying incident counts by crime type, hourly crime trends line chart, daily volume stacked bar chart, and demographic donut chart.
-3. `assets/03_data_model.png`:
-   * **Content:** Power BI Model View showing table relationships between `Water_Source`, `Well_Pollution`, `Location`, and `Crime_Incidents`.
-
----
-
-## Project Structure & Setup
+### Repo Structure
 
 ```text
 ├── assets/
 │   ├── 01_water_insights.png
 │   ├── 02_crime_insights.png
-│   └── 03_data_model.png
+│   ├── 03_queue_patterns.png
+│   └── 04_province_map.png
+├── power_bi/
+│   ├── ALX PROJECT.pbix              # Stage 1: National, Regional Map, Queue Analysis
+│   └── ALX PROJECT PART 2 SCHEMA.pbix # Stage 2: adds Water Insights, Crime Insight
 ├── sql/
-│   └── maji_ndogo_queries.sql
-├── data/
-│   └── raw_data_schema.sql
-├── Maji_Ndogo_Water_Insights.pbix
+│   └── md_water_services.sql
 └── README.md
 ```
 
-### How to Run
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/your-username/maji-ndogo-water-insights.git
-   ```
-2. Download and install [Power BI Desktop](https://powerbi.microsoft.com/desktop/).
-3. Open `Maji_Ndogo_Water_Insights.pbix` to interact with the visualizations, examine the DAX measures, and review the underlying data model.
+</details>
+
+---
+
+*Part of the ALX Data Analytics Program.*
